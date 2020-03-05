@@ -1,11 +1,19 @@
 #!/usr/bin/env python
 # Helper modules for stat bot.
 
+import re
 import lxml.html as lh
+
 from lxml.html.clean import Cleaner
 from lxml.etree import tostring
 from urllib.parse import urlencode
-import re
+from requests import get
+
+
+def parse_url(url):
+    page = get(url, headers={"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.82 Safari/537.36"})
+    return lh.fromstring(page.content)
+
 
 class Mapper:
     ''' Contains mappings and a helper
@@ -136,15 +144,15 @@ class PlayerFinder:
         stats_url = self.base_url + \
                 "/stats/engine/stats/analysis.html?search=" + \
                 self.player_name.replace(" ", "+") + ";template=analysis"
-        document = lh.parse(stats_url)
-        entries = document.xpath('//a[contains(text(), "Combined Test, ODI and T20I player")]')
+        document = parse_url(stats_url)
+        entries = document.xpath('.//a[contains(text(), "Combined Test, ODI and T20I player")]')
 
         if not entries:
-            entries = document.xpath('//a[text() = "Test matches player"]')
+            entries = document.xpath('.//a[text() = "Test matches player"]')
             if entries:
                 self.test_player = True
 
-        players = document.findall("//span[@style='white-space: nowrap']")
+        players = document.findall(".//span[@style='white-space: nowrap']")
 
         if len(entries) > 1:
             self.response = []
@@ -173,7 +181,8 @@ class Prettifier:
         if self.tests_only:
             self.target_url = self.target_url.replace("class=11", "class=1")
 
-        document = lh.parse(self.target_url)
+        document = parse_url(self.target_url)
+        
         child_element = document.xpath('.//caption[contains(text(), "Career averages")]')
         target_element = child_element[0].getparent()
         cleaner = Cleaner(page_structure = True, allow_tags = [''], remove_unknown_tags = False)
